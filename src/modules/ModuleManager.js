@@ -18,6 +18,7 @@ import { SeparatorManager } from './menu/SeparatorManager.js'
 import { RouteGenerator } from './routes/RouteGenerator.js'
 import { PermissionRulesManager } from './permissions/PermissionRulesManager.js'
 import { PermissionSectionsManager } from './permissions/PermissionSectionsManager.js'
+import { IntegrationsManager } from './integrations/IntegrationsManager.js'
 
 export class ModuleManager {
   constructor(config = {}) {
@@ -31,6 +32,7 @@ export class ModuleManager {
     })
     this.permissionRulesManager = new PermissionRulesManager()
     this.permissionSectionsManager = new PermissionSectionsManager()
+    this.integrationsManager = new IntegrationsManager()
     this.routeGenerator = null
 
     this.config = config
@@ -60,6 +62,15 @@ export class ModuleManager {
 
     // Инициализируем сепараторы
     this.initializeSeparators()
+
+    // Интеграции регистрируются ПОСЛЕ остальных менеджеров.
+    // Это важно, чтобы избежать циклического deadlock-а, когда endpoints.js
+    // имеет top-level await на getEndpoints(), а integrations.js модулей
+    // транзитивно импортируют tokenService -> endpoints.js. К моменту
+    // initializeIntegrations остальные менеджеры уже доступны, а
+    // integrations.js загружается лениво (см. ModuleLoader.js), без
+    // static-импортов tokenService/apiClient во избежание цикла.
+    await this.integrationsManager.initialize()
 
     this.initialized = true
   }
@@ -219,7 +230,8 @@ export class ModuleManager {
       icons: this.iconManager.getStatistics(),
       separators: this.separatorManager.getStatistics(),
       permissionRules: this.permissionRulesManager.getStatistics(),
-      permissionSections: this.permissionSectionsManager.getStatistics()
+      permissionSections: this.permissionSectionsManager.getStatistics(),
+      integrations: this.integrationsManager.getStatistics()
     }
   }
 
@@ -260,6 +272,7 @@ export class ModuleManager {
     this.endpointManager.clearCache()
     this.permissionRulesManager.clearCache()
     this.permissionSectionsManager.clearCache()
+    this.integrationsManager.clearCache()
   }
 
   /**
@@ -300,6 +313,10 @@ export class ModuleManager {
 
   get permissionSections() {
     return this.permissionSectionsManager
+  }
+
+  get integrations() {
+    return this.integrationsManager
   }
 }
 

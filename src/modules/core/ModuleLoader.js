@@ -41,7 +41,21 @@ const sharedGlobs = {
     ...import.meta.glob('../../../../../modules/*/client/**/js/permission-sections.js', { eager: true })
   },
   modulesMenuConfigs: import.meta.glob('../../../../../modules/*/client/js/menu-config.json', { eager: true, import: 'default' }),
-  
+
+  // Интеграции с ModuleBridge (регистрация capabilities/events модуля)
+  //
+  // ВАЖНО: загружаем лениво (без eager), чтобы integrations.js-файлы не
+  // исполнялись на стадии импорта ModuleLoader.js. Это ломает циклическую
+  // цепочку `@/modules/index.js` -> ModuleManager -> IntegrationsManager ->
+  // ModuleLoader -> integrations.js -> tokenService/endpoints -> `@/modules/index.js`.
+  // integrations.js грузится асинхронно в IntegrationsManager.initialize(),
+  // когда moduleManager уже полностью инициализирован.
+  coreIntegrations: import.meta.glob('../../core/**/js/integrations.js'),
+  modulesIntegrations: {
+    ...import.meta.glob('../../../../../modules/*/client/js/integrations.js'),
+    ...import.meta.glob('../../../../../modules/*/client/**/js/integrations.js')
+  },
+
   // External компоненты (lazy loading)
   modulesComponents: import.meta.glob('../../../../../modules/**/client/**/*.vue')
 }
@@ -66,6 +80,7 @@ export class ModuleLoader {
       'js/permission-rules.js': ['corePermissionRules', 'modulesPermissionRules'],
       'js/permission-sections.js': ['corePermissionSections', 'modulesPermissionSections'],
       'js/menu-config.json': ['coreMenuConfigs', 'modulesMenuConfigs'],
+      'js/integrations.js': ['coreIntegrations', 'modulesIntegrations'],
       'components': ['coreComponents', 'modulesComponents']
     }
 

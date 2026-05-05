@@ -5,13 +5,18 @@
             <button class="btn btn-light w-100 d-flex align-items-center justify-content-between select-trigger" type="button" :disabled="disabled" @click="toggle" @blur="$emit('blur')">
                 <span class="select-trigger-slot d-flex align-items-center flex-grow-1 me-2">
                     <slot name="selected" :option="selectedOption" :label="currentLabel">
-                        <span ref="valueTextEl" class="value-text" :style="{ fontSize: currentFontSize }">{{ currentLabel }}</span>
+                        <span ref="valueTextEl" class="value-text" :style="valueTextInlineStyle">{{ currentLabel }}</span>
                     </slot>
                 </span>
                 <span v-if="!hideChevron" class="d-inline-flex align-items-center"><ChevronDown class="icon-center" /></span>
             </button>
             <teleport to="body">
-                <div v-if="isOpen" ref="menuEl" class="dropdown-menu show fixed-menu" :style="fixedMenuStyle">
+                <div
+                    v-if="isOpen"
+                    ref="menuEl"
+                    :class="dropdownTeleportMenuClass"
+                    :style="fixedMenuStyle"
+                >
                     <input
                         v-if="searchable"
                         ref="searchInputEl"
@@ -80,7 +85,7 @@ const props = defineProps({
     disabled: { type: Boolean, default: false },
     clearable: { type: Boolean, default: false },
     includeAllOption: { type: Boolean, default: true },
-    allLabel: { type: String, default: 'Все' },
+    allLabel: { type: String, default: 'Не выбрана' },
     valueKey: { type: String, default: 'id' },
     labelKey: { type: String, default: 'name' },
     size: { type: String, default: 'md' },
@@ -99,9 +104,22 @@ const props = defineProps({
     virtualized: { type: Boolean, default: false },
     itemHeight: { type: Number, default: 36 },
     overscan: { type: Number, default: 6 },
+    /** Не подстраивать размер подписи под ширину и computed-style триггера (для компактных тулбаров) */
+    fixedTriggerLabelFontSize: { type: Boolean, default: false },
+    /** Доп. класс на выпадающее меню (teleport в body — для стилей с :global у потребителя) */
+    dropdownMenuClass: { type: String, default: '' },
+    /** Одинаковый размер шрифта у всех пунктов списка, включая active (компактные тулбары) */
+    uniformDropdownListFont: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'change', 'blur'])
+
+const dropdownTeleportMenuClass = computed(() => {
+    const parts = ['dropdown-menu', 'show', 'fixed-menu']
+    if (props.dropdownMenuClass) parts.push(props.dropdownMenuClass)
+    if (props.uniformDropdownListFont) parts.push('select-box-menu--uniform-font')
+    return parts
+})
 
 function toKey(value) {
     if (value === null || value === undefined) return NULL_VALUE
@@ -351,9 +369,14 @@ function onListScroll() {
     updateVisibleRange()
 }
 const currentFontSize = ref('1rem')
+const valueTextInlineStyle = computed(() => {
+    if (props.fixedTriggerLabelFontSize) return undefined
+    return { fontSize: currentFontSize.value }
+})
 const baseFontSize = 16
 const minFontSize = 12
 function adjustFontSize() {
+    if (props.fixedTriggerLabelFontSize) return
     if (typeof props.maxSelectedChars === 'number' && props.maxSelectedChars > 0) return
     const el = valueTextEl.value
     if (!el) return
@@ -554,8 +577,15 @@ watch(searchQuery, () => {
 .dropdown-item.active {
     background-color: var(--color-accent-bg, rgba(var(--bs-primary-rgb), 0.1));
     color: var(--color-accent, #0d6efd);
-    font-weight: 500;
+    font-weight: 400;
 }
+
+.select-box-menu--uniform-font .dropdown-item,
+.select-box-menu--uniform-font .dropdown-item.active {
+    font-size: 12px;
+    font-weight: 400;
+}
+
 .icon-center {
     width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
 }
